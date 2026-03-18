@@ -16,6 +16,7 @@ export type OpencodeServeLoopOptions = {
     session: OpencodeSession;
     path: string;
     resumeSessionId?: string;
+    startedBy?: 'runner' | 'terminal';
 };
 
 function resolveOpencodeConfigDir(session: OpencodeSession): string {
@@ -27,6 +28,9 @@ function resolveOpencodeConfigDir(session: OpencodeSession): string {
 
 export async function opencodeServeLoop(opts: OpencodeServeLoopOptions): Promise<void> {
     const { session, path } = opts;
+    const startedBy = opts.startedBy ?? 'terminal';
+    const useAttach = startedBy === 'terminal' && process.stdin.isTTY !== false;
+
     let server: OpencodeServeHandle | null = null;
     let sdk: SdkClient | null = null;
     let bridge: SseBridgeHandle | null = null;
@@ -78,16 +82,8 @@ export async function opencodeServeLoop(opts: OpencodeServeLoopOptions): Promise
         // 6. Start SSE bridge (opencode events → hapi web UI)
         bridge = startSseBridge(sdk, session, opencodeSessionId);
 
-        // 7. Run attach TUI + message queue watcher in parallel
+        // 7. Run tasks in parallel
         const abortController = new AbortController();
-
-        const attachPromise = runAttach({
-            serverUrl: server.url,
-            sessionId: opencodeSessionId,
-            password: server.password,
-            cwd: path,
-            signal: abortController.signal
-        });
 
         const watcherPromise = watchMessageQueue({
             sdk,
@@ -96,13 +92,32 @@ export async function opencodeServeLoop(opts: OpencodeServeLoopOptions): Promise
             signal: abortController.signal
         });
 
-        // Wait for either to finish (attach exit means user quit TUI)
-        try {
-            await Promise.race([attachPromise, watcherPromise]);
-        } finally {
-            abortController.abort();
-            // Wait for both to settle
-            await Promise.allSettled([attachPromise, watcherPromise]);
+        if (useAttach) {
+            // Terminal mode: run attach TUI alongside message watcher
+            const attachPromise = runAttach({
+                serverUrl: server.url,
+                sessionId: opencodeSessionId,
+                password: server.password,
+                cwd: path,
+                signal: abortController.signal
+            });
+
+            try {
+                // Attach exit = user quit TUI → exit everything
+                await Promise.race([attachPromise, watcherPromise]);
+            } finally {
+                abortController.abort();
+                await Promise.allSettled([attachPromise, watcherPromise]);
+            }
+        } else {
+            // Runner mode (mobile spawn): no TUI, just process messages via SDK
+            logger.debug('[serve-loop] Running in headless mode (no attach TUI)');
+            session.sendSessionEvent({ type: 'ready' });
+            try {
+                await watcherPromise;
+            } finally {
+                abortController.abort();
+            }
         }
     } finally {
         // 8. Cleanup

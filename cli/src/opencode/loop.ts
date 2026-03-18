@@ -69,12 +69,13 @@ export async function opencodeLoop(opts: OpencodeLoopOptions): Promise<void> {
     }
 
     // Prefer serve mode when available (opencode >= 1.2.0)
-    if (startedBy === 'terminal' && await supportsServeMode()) {
-        logger.debug('[opencode-loop] Using serve mode');
+    if (await supportsServeMode()) {
+        logger.debug(`[opencode-loop] Using serve mode (startedBy=${startedBy})`);
         await opencodeServeLoop({
             session,
             path: opts.path,
-            resumeSessionId: opts.resumeSessionId
+            resumeSessionId: opts.resumeSessionId,
+            startedBy
         });
         return;
     }
