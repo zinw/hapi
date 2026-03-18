@@ -10,12 +10,19 @@ export type SseBridgeHandle = {
 export function startSseBridge(
     sdk: SdkClient,
     session: OpencodeSession,
-    sessionId: string
+    initialSessionId: string
 ): SseBridgeHandle {
     let stopped = false;
+    let activeSessionId = initialSessionId;
     const sentTextParts = new Set<string>();
     const sentToolCalls = new Set<string>();
     const sentToolResults = new Set<string>();
+
+    const clearDeduplicationState = () => {
+        sentTextParts.clear();
+        sentToolCalls.clear();
+        sentToolResults.clear();
+    };
 
     const run = async () => {
         while (!stopped) {
@@ -38,15 +45,19 @@ export function startSseBridge(
                 break;
             }
             const ge = globalEvent as GlobalEvent;
-            handleEvent(ge.payload, sessionId);
+            handleEvent(ge.payload);
         }
     };
 
-    const handleEvent = (event: OpencodeEvent, targetSessionId: string) => {
+    const handleEvent = (event: OpencodeEvent) => {
         switch (event.type) {
             case 'session.created': {
                 const info = event.properties.info;
                 if (info.id) {
+                    // Track the new session (e.g. user ran "new" in TUI)
+                    logger.debug(`[sse-bridge] New session detected: ${info.id} (was ${activeSessionId})`);
+                    activeSessionId = info.id;
+                    clearDeduplicationState();
                     session.onSessionFound(info.id);
                 }
                 break;
@@ -54,7 +65,7 @@ export function startSseBridge(
 
             case 'session.status': {
                 const props = event.properties;
-                if (props.sessionID !== targetSessionId) {
+                if (props.sessionID !== activeSessionId) {
                     break;
                 }
                 if (props.status.type === 'busy' || props.status.type === 'retry') {
@@ -66,7 +77,7 @@ export function startSseBridge(
             }
 
             case 'session.idle': {
-                if (event.properties.sessionID === targetSessionId) {
+                if (event.properties.sessionID === activeSessionId) {
                     session.onThinkingChange(false);
                 }
                 break;
@@ -74,7 +85,7 @@ export function startSseBridge(
 
             case 'message.updated': {
                 const info = event.properties.info;
-                if (info.sessionID !== targetSessionId) {
+                if (info.sessionID !== activeSessionId) {
                     break;
                 }
                 if (info.role === 'user') {
@@ -87,7 +98,7 @@ export function startSseBridge(
 
             case 'message.part.updated': {
                 const part = event.properties.part;
-                if (part.sessionID !== targetSessionId) {
+                if (part.sessionID !== activeSessionId) {
                     break;
                 }
                 handlePartUpdated(part);
@@ -102,7 +113,7 @@ export function startSseBridge(
 
             case 'permission.asked': {
                 const props = event.properties;
-                if (props.sessionID !== targetSessionId) {
+                if (props.sessionID !== activeSessionId) {
                     break;
                 }
                 session.client.updateAgentState((currentState) => ({
@@ -121,7 +132,7 @@ export function startSseBridge(
 
             case 'permission.replied': {
                 const props = event.properties;
-                if (props.sessionID !== targetSessionId) {
+                if (props.sessionID !== activeSessionId) {
                     break;
                 }
                 session.client.updateAgentState((currentState) => {
@@ -149,7 +160,7 @@ export function startSseBridge(
 
             case 'question.asked': {
                 const props = event.properties;
-                if (props.sessionID !== targetSessionId) {
+                if (props.sessionID !== activeSessionId) {
                     break;
                 }
                 // Forward question to web UI via agentState
@@ -171,7 +182,7 @@ export function startSseBridge(
 
             case 'session.error': {
                 const props = event.properties;
-                if (props.sessionID !== targetSessionId) {
+                if (props.sessionID !== activeSessionId) {
                     break;
                 }
                 if (props.error) {
