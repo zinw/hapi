@@ -3,6 +3,7 @@ import { logger } from "@/ui/logger";
 import { join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { readFile, readdir, stat } from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import type { CodexSessionEvent } from "./codexEventConverter";
 
 interface CodexSessionScannerOptions {
@@ -459,7 +460,12 @@ function parseTimestamp(value: unknown): number | null {
 
 function normalizePath(value: string): string {
     const resolved = resolve(value);
-    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    try {
+        const real = realpathSync(resolved);
+        return process.platform === 'win32' ? real.toLowerCase() : real;
+    } catch {
+        return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    }
 }
 
 function getSessionDatePrefixes(referenceTimestampMs: number, windowMs: number): Set<string> {

@@ -610,7 +610,7 @@ export async function opencodeLocalLauncher(
                     session.onSessionFound(sessionId);
                 },
                 onSessionMatchFailed: (message) => {
-                    session.sendSessionEvent({ type: 'message', message });
+                    logger.debug(`[opencode-local]: ${message}`);
                 }
             });
         } catch (error) {

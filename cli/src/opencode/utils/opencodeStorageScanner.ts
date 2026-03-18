@@ -1,7 +1,8 @@
 import { logger } from '@/ui/logger';
 import { readdir, readFile, stat } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import type { Dirent } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { isObject } from '@hapi/protocol';
 import type { OpencodeHookEvent } from '../types';
@@ -205,6 +206,19 @@ class OpencodeStorageScanner {
 
             if (!best || diff < best.score) {
                 best = { sessionId: info.id, score: diff };
+            }
+        }
+
+        // Also try SQLite DB (opencode >= 1.1.x stores sessions in a database)
+        if (!best) {
+            const dbCandidate = querySessionFromDb(
+                this.storageDir,
+                this.targetCwd,
+                this.referenceTimestampMs,
+                this.sessionStartWindowMs
+            );
+            if (dbCandidate) {
+                best = dbCandidate;
             }
         }
 
@@ -439,6 +453,43 @@ async function listSessionInfoFiles(storageDir: string): Promise<string[]> {
     return results;
 }
 
+function querySessionFromDb(
+    storageDir: string,
+    targetCwd: string,
+    referenceTimestampMs: number,
+    sessionStartWindowMs: number
+): SessionCandidate | null {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { Database } = require('bun:sqlite') as typeof import('bun:sqlite');
+        const dbPath = join(dirname(storageDir), 'opencode.db');
+        const db = new Database(dbPath, { readonly: true });
+        try {
+            const maxTimestamp = referenceTimestampMs + sessionStartWindowMs;
+            const rows = db.query<{ id: string; directory: string; time_created: number }, [number, number]>(
+                'SELECT id, directory, time_created FROM session WHERE time_created >= ? AND time_created <= ? ORDER BY time_created ASC'
+            ).all(referenceTimestampMs, maxTimestamp);
+
+            let best: SessionCandidate | null = null;
+            for (const row of rows) {
+                if (normalizePath(row.directory) !== targetCwd) {
+                    continue;
+                }
+                const diff = row.time_created - referenceTimestampMs;
+                if (!best || diff < best.score) {
+                    best = { sessionId: row.id, score: diff };
+                }
+            }
+            return best;
+        } finally {
+            db.close();
+        }
+    } catch (error) {
+        logger.debug(`[opencode-storage] Failed to query SQLite DB: ${error}`);
+        return null;
+    }
+}
+
 async function listJsonFiles(dirPath: string): Promise<string[]> {
     const entries = await safeReadDir(dirPath);
     return entries
@@ -484,7 +535,12 @@ function resolveOpencodeStorageDir(): string {
 
 function normalizePath(value: string): string {
     const resolved = resolve(value);
-    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    try {
+        const real = realpathSync(resolved);
+        return process.platform === 'win32' ? real.toLowerCase() : real;
+    } catch {
+        return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    }
 }
 
 function filenameToId(filePath: string): string | null {

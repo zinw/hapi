@@ -98,7 +98,7 @@ export const CreateSessionResponseSchema = z.object({
         thinking: z.boolean(),
         thinkingAt: z.number(),
         todos: TodosSchema.optional(),
-        model: z.string().nullable(),
+        model: z.string().nullable().optional(),
         permissionMode: PermissionModeSchema.optional(),
         collaborationMode: CodexCollaborationModeSchema.optional()
     })
