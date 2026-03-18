@@ -35,8 +35,11 @@
   "scripts": {
     "postinstall": "node -e \"try{require('fs').chmodSync(require('path').join(__dirname,'bin','hapi.cjs'),0o755)}catch(e){}\"",
     "typecheck": "tsc --noEmit",
+    "stamp:dev": "bun run scripts/stamp-dev-version.ts",
+    "stamp:restore": "bun run scripts/stamp-dev-version.ts --restore",
     "build:exe": "bun run scripts/build-executable.ts",
     "build:exe:all": "bun run scripts/build-executable.ts --all",
+    "build:exe:dev": "bun run stamp:dev && bun run build:exe --with-web-assets; bun run stamp:restore",
     "build:exe:allinone": "bun run scripts/build-executable.ts --with-web-assets",
     "build:exe:allinone:all": "bun run scripts/build-executable.ts --with-web-assets --all",
     "prepare-npm-packages": "bun run scripts/prepare-npm-packages.ts",
