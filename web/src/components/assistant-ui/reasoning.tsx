@@ -27,6 +27,19 @@ function ChevronIcon(props: { className?: string; open?: boolean }) {
     )
 }
 
+function getReasoningSummary(text: string): string | null {
+    const cleaned = text.replace(/^>\s*/gm, '').trim()
+    if (!cleaned) return null
+    const end = Math.min(
+        cleaned.indexOf('\n') > 0 ? cleaned.indexOf('\n') : Infinity,
+        cleaned.indexOf('。') > 0 ? cleaned.indexOf('。') + 1 : Infinity,
+        cleaned.indexOf('. ') > 0 ? cleaned.indexOf('. ') + 1 : Infinity,
+        60
+    )
+    const summary = cleaned.slice(0, end).trim()
+    return summary.length > 0 ? summary : null
+}
+
 function ShimmerDot() {
     return (
         <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-pulse" />
@@ -59,6 +72,12 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
         && message.content.length > 0
         && message.content[message.content.length - 1]?.type === 'reasoning'
 
+    const reasoningText = message.content
+        .filter((c): c is { type: 'reasoning'; text: string } => c.type === 'reasoning' && 'text' in c)
+        .map(c => c.text)
+        .join('\n')
+    const summary = getReasoningSummary(reasoningText)
+
     // Auto-expand while streaming
     useEffect(() => {
         if (isStreaming) {
@@ -79,6 +98,11 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
             >
                 <ChevronIcon open={isOpen} />
                 <span>Reasoning</span>
+                {!isOpen && summary && (
+                    <span className="text-[var(--app-hint)] font-normal truncate max-w-[200px]">
+                        — {summary}
+                    </span>
+                )}
                 {isStreaming && (
                     <span className="flex items-center gap-1 ml-1 text-[var(--app-hint)]">
                         <ShimmerDot />

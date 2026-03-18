@@ -354,7 +354,7 @@ function ToolCardInner(props: ToolCardProps) {
     )
 
     return (
-        <Card className="overflow-hidden shadow-sm">
+        <Card className="overflow-hidden shadow-sm animate-tool-fade-in">
             <CardHeader className="p-3 space-y-0">
                 <Dialog>
                     <DialogTrigger asChild>

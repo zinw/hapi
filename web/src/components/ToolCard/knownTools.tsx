@@ -421,6 +421,35 @@ export const knownTools: Record<string, {
     }
 }
 
+const categoryMatchers: Array<{ test: (name: string) => boolean; entry: string }> = [
+    { test: n => ['bash', 'shell', 'terminal', 'cmd', 'exec', 'run'].some(k => n.includes(k)), entry: 'Bash' },
+    { test: n => n.includes('read') || n.includes('cat') || n.includes('view'), entry: 'Read' },
+    { test: n => n.includes('edit') || n.includes('patch') || n.includes('replace'), entry: 'Edit' },
+    { test: n => n.includes('write') || n.includes('create_file'), entry: 'Write' },
+    { test: n => n.includes('grep') || n.includes('search') || n.includes('find') || n.includes('rg'), entry: 'Grep' },
+    { test: n => n.includes('glob') || n.includes('ls') || n.includes('list'), entry: 'Glob' },
+    { test: n => n.includes('web') || n.includes('fetch') || n.includes('http') || n.includes('url'), entry: 'WebFetch' },
+    { test: n => n.includes('todo') || n.includes('plan'), entry: 'TodoWrite' },
+    { test: n => n.includes('question') || n.includes('ask') || n.includes('permission'), entry: 'AskUserQuestion' },
+]
+
+/**
+ * Resolve a tool name to a known tool registry key.
+ * Priority: exact match → capitalized match → category keyword match → original name.
+ */
+export function resolveToolName(name: string): string {
+    if (knownTools[name]) return name
+    const capitalized = name.charAt(0).toUpperCase() + name.slice(1)
+    if (knownTools[capitalized]) return capitalized
+    const lower = name.toLowerCase()
+    for (const matcher of categoryMatchers) {
+        if (matcher.test(lower) && knownTools[matcher.entry]) {
+            return matcher.entry
+        }
+    }
+    return name
+}
+
 export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadata: SessionMetadataSummary | null }): ToolPresentation {
     if (opts.toolName.startsWith('mcp__')) {
         return {
@@ -431,8 +460,8 @@ export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadat
         }
     }
 
-    const known = knownTools[opts.toolName]
-        ?? knownTools[opts.toolName.charAt(0).toUpperCase() + opts.toolName.slice(1)]
+    const resolved = resolveToolName(opts.toolName)
+    const known = knownTools[resolved]
     if (known) {
         const minimal = typeof known.minimal === 'function' ? known.minimal(opts) : (known.minimal ?? false)
         return {

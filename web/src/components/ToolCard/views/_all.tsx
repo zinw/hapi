@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import type { ToolCallBlock } from '@/chat/types'
 import type { SessionMetadataSummary } from '@/types/api'
+import { resolveToolName } from '@/components/ToolCard/knownTools'
 import { CodexDiffCompactView, CodexDiffFullView } from '@/components/ToolCard/views/CodexDiffView'
 import { CodexPatchView } from '@/components/ToolCard/views/CodexPatchView'
 import { EditView } from '@/components/ToolCard/views/EditView'
@@ -47,13 +48,9 @@ export const toolFullViewRegistry: Record<string, ToolViewComponent> = {
 }
 
 export function getToolViewComponent(toolName: string): ToolViewComponent | null {
-    return toolViewRegistry[toolName]
-        ?? toolViewRegistry[toolName.charAt(0).toUpperCase() + toolName.slice(1)]
-        ?? null
+    return toolViewRegistry[resolveToolName(toolName)] ?? null
 }
 
 export function getToolFullViewComponent(toolName: string): ToolViewComponent | null {
-    return toolFullViewRegistry[toolName]
-        ?? toolFullViewRegistry[toolName.charAt(0).toUpperCase() + toolName.slice(1)]
-        ?? null
+    return toolFullViewRegistry[resolveToolName(toolName)] ?? null
 }

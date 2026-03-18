@@ -1,4 +1,5 @@
 import type { ToolViewComponent, ToolViewProps } from '@/components/ToolCard/views/_all'
+import { resolveToolName } from '@/components/ToolCard/knownTools'
 import { isObject, safeStringify } from '@hapi/protocol'
 import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
@@ -570,7 +571,6 @@ export function getToolResultViewComponent(toolName: string): ToolViewComponent 
     if (toolName.startsWith('mcp__')) {
         return GenericResultView
     }
-    return toolResultViewRegistry[toolName]
-        ?? toolResultViewRegistry[toolName.charAt(0).toUpperCase() + toolName.slice(1)]
+    return toolResultViewRegistry[resolveToolName(toolName)]
         ?? GenericResultView
 }

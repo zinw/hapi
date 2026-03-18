@@ -289,6 +289,22 @@ html[data-theme="dark"] .shiki span {
   animation: bounce-in 0.3s ease-out;
 }
 
+/* Tool card fade-in animation */
+@keyframes tool-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tool-fade-in {
+  animation: tool-fade-in 0.2s ease-out;
+}
+
 /* ReactQueryDevtools button - move to middle-right to avoid blocking UI */
 .tsqd-open-btn-container {
   bottom: 50% !important;
