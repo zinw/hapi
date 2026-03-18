@@ -16,6 +16,7 @@ export function reduceTimeline(
 ): { blocks: ChatBlock[]; toolBlocksById: Map<string, ToolCallBlock>; hasReadyEvent: boolean } {
     const blocks: ChatBlock[] = []
     const toolBlocksById = new Map<string, ToolCallBlock>()
+    const textBlockIndexByUuid = new Map<string, number>()
     let hasReadyEvent = false
 
     for (const msg of messages) {
@@ -87,26 +88,40 @@ export function reduceTimeline(
                         }))
                         continue
                     }
-                    blocks.push({
+                    const textBlock: ChatBlock = {
                         kind: 'agent-text',
                         id: `${msg.id}:${idx}`,
                         localId: msg.localId,
                         createdAt: msg.createdAt,
                         text: c.text,
                         meta: msg.meta
-                    })
+                    }
+                    const prevTextIdx = textBlockIndexByUuid.get(c.uuid)
+                    if (prevTextIdx !== undefined) {
+                        blocks[prevTextIdx] = textBlock
+                    } else {
+                        textBlockIndexByUuid.set(c.uuid, blocks.length)
+                        blocks.push(textBlock)
+                    }
                     continue
                 }
 
                 if (c.type === 'reasoning') {
-                    blocks.push({
+                    const reasoningBlock: ChatBlock = {
                         kind: 'agent-reasoning',
                         id: `${msg.id}:${idx}`,
                         localId: msg.localId,
                         createdAt: msg.createdAt,
                         text: c.text,
                         meta: msg.meta
-                    })
+                    }
+                    const prevReasoningIdx = textBlockIndexByUuid.get(c.uuid)
+                    if (prevReasoningIdx !== undefined) {
+                        blocks[prevReasoningIdx] = reasoningBlock
+                    } else {
+                        textBlockIndexByUuid.set(c.uuid, blocks.length)
+                        blocks.push(reasoningBlock)
+                    }
                     continue
                 }
 

@@ -562,12 +562,15 @@ export const toolResultViewRegistry: Record<string, ToolViewComponent> = {
     AskUserQuestion: AskUserQuestionResultView,
     ExitPlanMode: MarkdownResultView,
     ask_user_question: AskUserQuestionResultView,
-    exit_plan_mode: MarkdownResultView
+    exit_plan_mode: MarkdownResultView,
+    shell_command: BashResultView
 }
 
 export function getToolResultViewComponent(toolName: string): ToolViewComponent {
     if (toolName.startsWith('mcp__')) {
         return GenericResultView
     }
-    return toolResultViewRegistry[toolName] ?? GenericResultView
+    return toolResultViewRegistry[toolName]
+        ?? toolResultViewRegistry[toolName.charAt(0).toUpperCase() + toolName.slice(1)]
+        ?? GenericResultView
 }

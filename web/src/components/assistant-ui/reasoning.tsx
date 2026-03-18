@@ -92,7 +92,7 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                     isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
                 )}
             >
-                <div className="pl-4 pt-2 border-l-2 border-[var(--app-border)] ml-0.5">
+                <div className="pl-4 pt-2 border-l-2 border-[var(--app-reasoning-border)] bg-[var(--app-reasoning-bg)] rounded-r-md ml-0.5">
                     {children}
                 </div>
             </div>

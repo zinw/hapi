@@ -432,6 +432,7 @@ export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadat
     }
 
     const known = knownTools[opts.toolName]
+        ?? knownTools[opts.toolName.charAt(0).toUpperCase() + opts.toolName.slice(1)]
     if (known) {
         const minimal = typeof known.minimal === 'function' ? known.minimal(opts) : (known.minimal ?? false)
         return {

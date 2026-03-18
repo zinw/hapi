@@ -32,6 +32,18 @@
     --app-git-renamed-color: #2563eb;
     --app-git-untracked-color: #8E8E93;
 
+    /* Diff gutter */
+    --app-diff-added-gutter-bg: #cdffd8;
+    --app-diff-removed-gutter-bg: #ffdce0;
+
+    /* Code block */
+    --app-code-border: rgba(0, 0, 0, 0.08);
+    --app-code-header-bg: #f0f3f6;
+
+    /* Reasoning */
+    --app-reasoning-border: rgba(0, 0, 0, 0.12);
+    --app-reasoning-bg: rgba(0, 0, 0, 0.02);
+
     /* Badge colors (light) */
     --app-badge-warning-bg: rgba(245, 158, 11, 0.2);
     --app-badge-warning-text: #b45309;
@@ -76,6 +88,18 @@
     --app-git-deleted-color: #f87171;
     --app-git-renamed-color: #60a5fa;
     --app-git-untracked-color: #9ca3af;
+
+    /* Diff gutter */
+    --app-diff-added-gutter-bg: #12261e;
+    --app-diff-removed-gutter-bg: #2d1519;
+
+    /* Code block */
+    --app-code-border: rgba(255, 255, 255, 0.08);
+    --app-code-header-bg: #21262d;
+
+    /* Reasoning */
+    --app-reasoning-border: rgba(255, 255, 255, 0.12);
+    --app-reasoning-bg: rgba(255, 255, 255, 0.03);
 
     /* Badge colors (dark) */
     --app-badge-warning-bg: rgba(251, 191, 36, 0.2);

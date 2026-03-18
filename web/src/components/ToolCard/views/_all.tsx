@@ -47,9 +47,13 @@ export const toolFullViewRegistry: Record<string, ToolViewComponent> = {
 }
 
 export function getToolViewComponent(toolName: string): ToolViewComponent | null {
-    return toolViewRegistry[toolName] ?? null
+    return toolViewRegistry[toolName]
+        ?? toolViewRegistry[toolName.charAt(0).toUpperCase() + toolName.slice(1)]
+        ?? null
 }
 
 export function getToolFullViewComponent(toolName: string): ToolViewComponent | null {
-    return toolFullViewRegistry[toolName] ?? null
+    return toolFullViewRegistry[toolName]
+        ?? toolFullViewRegistry[toolName.charAt(0).toUpperCase() + toolName.slice(1)]
+        ?? null
 }

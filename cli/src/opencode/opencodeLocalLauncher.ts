@@ -317,6 +317,8 @@ export async function opencodeLocalLauncher(
     const sentToolResults = new Set<string>();
     const textBuffers = new Map<string, string>();
     const toolExecutionQueues = new Map<string, string[]>();
+    const flushTimers = new Map<string, Timer>();
+    const lastFlushedLength = new Map<string, number>();
 
     const handleHookEvent = (event: OpencodeHookEvent) => {
         const payload = event.payload;
@@ -389,10 +391,18 @@ export async function opencodeLocalLauncher(
                     || (!delta && Boolean(textFromPart));
                 const text = textFromPart ?? (key ? textBuffers.get(key) : null);
                 if (shouldFlush && text) {
+                    if (key) {
+                        const timer = flushTimers.get(key);
+                        if (timer) {
+                            clearTimeout(timer);
+                            flushTimers.delete(key);
+                        }
+                        lastFlushedLength.delete(key);
+                    }
                     if (role === 'user') {
                         session.sendUserMessage(text);
                     } else {
-                        session.sendCodexMessage({ type: 'message', message: text });
+                        session.sendCodexMessage({ type: 'message', message: text, id: partId ?? key });
                     }
                     if (partId) {
                         sentTextParts.add(partId);
@@ -400,6 +410,28 @@ export async function opencodeLocalLauncher(
                     if (key) {
                         textBuffers.delete(key);
                     }
+                } else if (!shouldFlush && key && role !== 'user') {
+                    const currentBuffer = textBuffers.get(key) ?? '';
+                    const lastLen = lastFlushedLength.get(key) ?? 0;
+                    if (currentBuffer.length > lastLen && !flushTimers.has(key)) {
+                        flushTimers.set(key, setTimeout(() => {
+                            flushTimers.delete(key);
+                            const buf = textBuffers.get(key);
+                            const prevLen = lastFlushedLength.get(key) ?? 0;
+                            if (buf && buf.length > prevLen) {
+                                lastFlushedLength.set(key, buf.length);
+                                session.sendCodexMessage({ type: 'message', message: buf, id: partId ?? key });
+                            }
+                        }, 300));
+                    }
+                }
+                return;
+            }
+
+            if (partType === 'reasoning' || partType === 'thinking') {
+                const text = getString(part.text) ?? getString(part.thinking) ?? getString(part.content);
+                if (text) {
+                    session.sendCodexMessage({ type: 'reasoning', message: text });
                 }
                 return;
             }
@@ -618,6 +650,11 @@ export async function opencodeLocalLauncher(
         }
         return await launcher.run();
     } finally {
+        for (const timer of flushTimers.values()) {
+            clearTimeout(timer);
+        }
+        flushTimers.clear();
+        lastFlushedLength.clear();
         session.removeHookEventHandler(handleHookEvent);
         if (storageScanner) {
             await storageScanner.cleanup();
