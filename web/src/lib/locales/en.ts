@@ -259,6 +259,7 @@ export default {
   'settings.about.title': 'About',
   'settings.about.website': 'Website',
   'settings.about.appVersion': 'App Version',
+  'settings.about.checkUpdate': 'Check Update',
   'settings.about.protocolVersion': 'Protocol Version',
 
   // Misc

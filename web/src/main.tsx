@@ -43,18 +43,22 @@ async function bootstrap() {
 
     const updateSW = registerSW({
         onNeedRefresh() {
-            if (confirm('New version available! Reload to update?')) {
-                updateSW(true)
-            }
+            // Auto-update without confirmation — especially important for iOS PWA
+            // where confirm() dialogs are unreliable in standalone mode
+            console.log('[SW] New version detected, auto-updating...')
+            updateSW(true)
         },
         onOfflineReady() {
             console.log('App ready for offline use')
         },
         onRegistered(registration) {
             if (registration) {
+                // Store registration globally for manual update checks
+                window.__swRegistration = registration
+                // Check for updates every 10 minutes (was 1 hour)
                 setInterval(() => {
                     registration.update()
-                }, 60 * 60 * 1000)
+                }, 10 * 60 * 1000)
             }
         },
         onRegisterError(error) {

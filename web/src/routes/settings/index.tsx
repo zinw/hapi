@@ -418,7 +418,29 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex w-full items-center justify-between px-3 py-3">
                             <span className="text-[var(--app-fg)]">{t('settings.about.appVersion')}</span>
-                            <span className="text-[var(--app-hint)]">{__APP_VERSION__}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[var(--app-hint)]">{__APP_VERSION__}</span>
+                                <button
+                                    type="button"
+                                    className="text-xs text-[var(--app-link)] hover:underline cursor-pointer"
+                                    onClick={() => {
+                                        const reg = window.__swRegistration
+                                        if (reg) {
+                                            reg.update().then(() => {
+                                                // Force reload all caches
+                                                if (reg.waiting) {
+                                                    reg.waiting.postMessage({ type: 'SKIP_WAITING' })
+                                                    window.location.reload()
+                                                }
+                                            })
+                                        } else {
+                                            window.location.reload()
+                                        }
+                                    }}
+                                >
+                                    {t('settings.about.checkUpdate')}
+                                </button>
+                            </div>
                         </div>
                         <div className="flex w-full items-center justify-between px-3 py-3">
                             <span className="text-[var(--app-fg)]">{t('settings.about.protocolVersion')}</span>
