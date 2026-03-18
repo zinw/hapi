@@ -19,6 +19,7 @@
       "dependencies": {
         "@hapi/protocol": "workspace:*",
         "@modelcontextprotocol/sdk": "^1.25.1",
+        "@opencode-ai/sdk": "^1.2.26",
         "@types/cross-spawn": "^6.0.6",
         "@types/ps-list": "^6.2.1",
         "@types/react": "^19.2.7",
@@ -622,6 +623,8 @@
 
     "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.25.1", "", { "dependencies": { "@hono/node-server": "^1.19.7", "ajv": "^8.17.1", "ajv-formats": "^3.0.1", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.0.1", "express-rate-limit": "^7.5.0", "jose": "^6.1.1", "json-schema-typed": "^8.0.2", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.25 || ^4.0", "zod-to-json-schema": "^3.25.0" }, "peerDependencies": { "@cfworker/json-schema": "^4.1.1" }, "optionalPeers": ["@cfworker/json-schema"] }, "sha512-yO28oVFFC7EBoiKdAn+VqRm+plcfv4v0xp6osG/VsCB0NlPZWi87ajbCZZ8f/RvOFLEu7//rSRmuZZ7lMoe3gQ=="],
 
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.2.27", "https://registry.npmmirror.com/@opencode-ai/sdk/-/sdk-1.2.27.tgz", {}, "sha512-Wk0o/I+Fo+wE3zgvlJDs8Fb67KlKqX0PrV8dK5adSDkANq6r4Z25zXJg2iOir+a8ntg3rAcpel1OY4FV/TwRUA=="],
+
     "@pinojs/redact": ["@pinojs/redact@0.4.0", "", {}, "sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg=="],
 
     "@radix-ui/number": ["@radix-ui/number@1.1.1", "", {}, "sha512-MkKCwxlXTgz6CFoJx3pCwn07GKp36+aZyu/u2Ln2VrA5DcdyCZkASEDBTd8x5whTQQL5CiYf4prXKLcgQdv29g=="],
@@ -881,6 +884,8 @@
     "@twsxtd/hapi-linux-arm64": ["@twsxtd/hapi-linux-arm64@0.16.1", "", { "os": "linux", "cpu": "arm64", "bin": { "hapi": "bin/hapi" } }, "sha512-ElwnYQqVIw1/nkgE4gdPuaYbq+IeCmk5mJhB0EjdbFcsjZXXmOT0ifWWjpoT0emaC8LY7a5OmOH0v1DmWLsxEQ=="],
 
     "@twsxtd/hapi-linux-x64": ["@twsxtd/hapi-linux-x64@0.16.1", "", { "os": "linux", "cpu": "x64", "bin": { "hapi": "bin/hapi" } }, "sha512-0KNIsS4/g2XW59cOXpXG16Mmcc1gU4Z/VNgvQzJL0utfOxMUTrWzDVlrt7qN13yMocrqqgKCf0JTrEdgU1221w=="],
+
+    "@twsxtd/hapi-win32-x64": ["@twsxtd/hapi-win32-x64@0.16.1", "https://registry.npmmirror.com/@twsxtd/hapi-win32-x64/-/hapi-win32-x64-0.16.1.tgz", { "os": "win32", "cpu": "x64", "bin": { "hapi": "bin/hapi.exe" } }, "sha512-2nM/734UDmNuMyjrgMxdJBzs9nn9wvBhdlxtDtgdycGEiXefLoKKzhCRU37K7iLiW3gyHxlRShvz17dp5nu3zg=="],
 
     "@types/aria-query": ["@types/aria-query@5.0.4", "", {}, "sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw=="],
 

@@ -1,6 +1,6 @@
 {
   "name": "@twsxtd/hapi",
-  "version": "0.16.1",
+  "version": "0.16.1-dev+69cf8b3.dirty",
   "description": "App for agentic coding - access coding agent anywhere",
   "author": "Kirill Dubovitskiy & weishu",
   "license": "AGPL-3.0-only",
@@ -55,6 +55,7 @@
   },
   "dependencies": {
     "@hapi/protocol": "workspace:*",
+    "@opencode-ai/sdk": "^1.2.26",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@types/cross-spawn": "^6.0.6",
     "@types/ps-list": "^6.2.1",
