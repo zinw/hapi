@@ -133,7 +133,8 @@ export async function runOpencode(opts: {
         });
     } catch (error) {
         lifecycle.markCrash(error);
-        logger.debug('[opencode] Loop error:', error);
+        const errorDetail = error instanceof Error ? error.stack ?? error.message : JSON.stringify(error);
+        logger.debug(`[opencode] Loop error: ${errorDetail}`);
     } finally {
         const localFailure = sessionWrapperRef.current?.localLaunchFailure;
         if (localFailure?.exitReason === 'exit') {

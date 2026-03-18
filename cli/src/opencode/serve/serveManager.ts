@@ -108,7 +108,7 @@ export async function startOpencodeServe(opts: {
     });
 
     // Health check
-    const authHeader = `Basic ${Buffer.from(`:${password}`).toString('base64')}`;
+    const authHeader = `Basic ${Buffer.from(`opencode:${password}`).toString('base64')}`;
     let healthy = false;
     for (let attempt = 0; attempt < 10; attempt++) {
         try {

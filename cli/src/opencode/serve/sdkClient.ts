@@ -13,7 +13,7 @@ export type SdkClient = {
 };
 
 export function createSdkClient(url: string, password: string): SdkClient {
-    const authHeader = `Basic ${Buffer.from(`:${password}`).toString('base64')}`;
+    const authHeader = `Basic ${Buffer.from(`opencode:${password}`).toString('base64')}`;
 
     const client = createOpencodeClient({
         baseUrl: url as `http://${string}`,
@@ -29,9 +29,13 @@ export function createSdkClient(url: string, password: string): SdkClient {
             const result = await client.session.create({
                 directory: cwd
             });
+            if (result.error) {
+                logger.debug('[sdk-client] Create session error:', JSON.stringify(result.error));
+                throw new Error(`Failed to create opencode session: ${JSON.stringify(result.error)}`);
+            }
             const session = result.data;
             if (!session) {
-                throw new Error('Failed to create opencode session');
+                throw new Error('Failed to create opencode session: no data returned');
             }
             logger.debug(`[sdk-client] Created session: ${session.id}`);
             return session.id;
@@ -39,6 +43,10 @@ export function createSdkClient(url: string, password: string): SdkClient {
 
         async resumeSession(sessionId: string): Promise<string> {
             const result = await client.session.get({ sessionID: sessionId });
+            if (result.error) {
+                logger.debug('[sdk-client] Resume session error:', JSON.stringify(result.error));
+                throw new Error(`Failed to resume opencode session: ${JSON.stringify(result.error)}`);
+            }
             const session = result.data;
             if (!session) {
                 throw new Error(`Failed to resume opencode session: ${sessionId}`);
