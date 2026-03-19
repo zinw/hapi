@@ -49,16 +49,51 @@ export function startSseBridge(
         }
     };
 
+    const switchActiveSession = (nextSessionId: string, reason: string) => {
+        if (!nextSessionId || nextSessionId === activeSessionId) {
+            return;
+        }
+        logger.debug(`[sse-bridge] Switching active session to ${nextSessionId} (${reason}, was ${activeSessionId})`);
+        activeSessionId = nextSessionId;
+        clearDeduplicationState();
+        session.onSessionFound(nextSessionId);
+    };
+
     const handleEvent = (event: OpencodeEvent) => {
         switch (event.type) {
             case 'session.created': {
                 const info = event.properties.info;
-                if (info.id) {
-                    // Track the new session (e.g. user ran "new" in TUI)
-                    logger.debug(`[sse-bridge] New session detected: ${info.id} (was ${activeSessionId})`);
-                    activeSessionId = info.id;
-                    clearDeduplicationState();
+                if (!info.id) {
+                    break;
+                }
+
+                // Child sessions are typically spawned by subagents/task tools.
+                // Do not switch the tracked main session to a child session.
+                if (info.parentID) {
+                    logger.debug(`[sse-bridge] Ignoring child session ${info.id} (parent=${info.parentID})`);
+                    break;
+                }
+
+                // A brand new top-level session (e.g. /new) should become active.
+                switchActiveSession(info.id, 'top-level session.created');
+                break;
+            }
+
+            case 'tui.session.select': {
+                switchActiveSession(event.properties.sessionID, 'tui.session.select');
+                break;
+            }
+
+            case 'session.updated': {
+                const info = event.properties.info;
+                if (info.id === activeSessionId) {
                     session.onSessionFound(info.id);
+                    break;
+                }
+                if (!info.parentID && info.id !== activeSessionId) {
+                    // Top-level session update may indicate the user switched to another session.
+                    // Child session updates must not steal focus.
+                    logger.debug(`[sse-bridge] Observed top-level session update for ${info.id} while active=${activeSessionId}`);
                 }
                 break;
             }
