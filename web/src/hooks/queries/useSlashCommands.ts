@@ -90,11 +90,14 @@ export function useSlashCommands(
     const commands = useMemo(() => {
         const builtin = BUILTIN_COMMANDS[agentType] ?? BUILTIN_COMMANDS['claude'] ?? []
 
-        // If API succeeded, add user-defined and plugin commands
+        // If API succeeded, merge returned commands.
+        // For opencode, the API provides dynamic built-in commands from the running server.
         if (query.data?.success && query.data.commands) {
-            const extraCommands = query.data.commands.filter(
-                cmd => cmd.source === 'user' || cmd.source === 'plugin' || cmd.source === 'project'
-            )
+            const extraCommands = agentType === 'opencode'
+                ? query.data.commands
+                : query.data.commands.filter(
+                    cmd => cmd.source === 'user' || cmd.source === 'plugin' || cmd.source === 'project'
+                )
             return [...builtin, ...extraCommands]
         }
 

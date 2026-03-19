@@ -65,6 +65,31 @@ export async function opencodeServeLoop(opts: OpencodeServeLoopOptions): Promise
         // 4. Create SDK client
         sdk = createSdkClient(server.url, server.password);
 
+        // Expose dynamic opencode slash commands for web autocomplete
+        session.client.rpcHandlerManager.registerHandler('listSlashCommands', async (data: unknown) => {
+            const agent = typeof data === 'object' && data && 'agent' in data ? (data as { agent?: unknown }).agent : undefined;
+            if (agent !== 'opencode') {
+                return { success: true, commands: [] };
+            }
+
+            try {
+                const commands = await sdk!.listCommands();
+                return {
+                    success: true,
+                    commands: commands.map((command) => ({
+                        name: command.name,
+                        description: command.description,
+                        source: 'builtin' as const,
+                    }))
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Failed to list opencode commands'
+                };
+            }
+        });
+
         // 5. Create or resume session
         let opencodeSessionId: string;
         if (opts.resumeSessionId) {
