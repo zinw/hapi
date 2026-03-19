@@ -6,6 +6,8 @@ export type SdkClient = {
     createSession: (cwd: string) => Promise<string>;
     resumeSession: (sessionId: string) => Promise<string>;
     promptAsync: (sessionId: string, text: string) => Promise<void>;
+    runCommand: (sessionId: string, command: string, args?: string) => Promise<void>;
+    listCommands: () => Promise<Array<{ name: string; description?: string; template?: string }>>;
     abort: (sessionId: string) => Promise<void>;
     replyPermission: (requestId: string, reply: 'once' | 'always' | 'reject') => Promise<void>;
     replyQuestion: (requestId: string, answers: Array<Array<string>>) => Promise<void>;
@@ -61,6 +63,28 @@ export function createSdkClient(url: string, password: string): SdkClient {
                 sessionID: sessionId,
                 parts: [{ type: 'text', text }]
             });
+        },
+
+        async runCommand(sessionId: string, command: string, args?: string): Promise<void> {
+            logger.debug(`[sdk-client] Running command /${command} for session ${sessionId}`);
+            await client.session.command({
+                sessionID: sessionId,
+                command,
+                arguments: args
+            });
+        },
+
+        async listCommands(): Promise<Array<{ name: string; description?: string; template?: string }>> {
+            const result = await client.command.list();
+            if (result.error) {
+                logger.debug('[sdk-client] List commands error:', JSON.stringify(result.error));
+                throw new Error(`Failed to list commands: ${JSON.stringify(result.error)}`);
+            }
+            return (result.data ?? []).map((command) => ({
+                name: command.name,
+                description: command.description,
+                template: command.template
+            }));
         },
 
         async abort(sessionId: string): Promise<void> {

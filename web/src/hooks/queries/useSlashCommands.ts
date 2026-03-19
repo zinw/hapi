@@ -50,7 +50,13 @@ const BUILTIN_COMMANDS: Record<string, SlashCommand[]> = {
         { name: 'compress', description: 'Compress the context by replacing it with a summary', source: 'builtin' },
         { name: 'stats', description: 'Check session stats', source: 'builtin' },
     ],
-    opencode: [],
+    opencode: [
+        { name: 'new', description: 'Start a new chat during a conversation', source: 'builtin' },
+        { name: 'compact', description: 'Compact the conversation to save context', source: 'builtin' },
+        { name: 'share', description: 'Create a shareable session link', source: 'builtin' },
+        { name: 'interrupt', description: 'Interrupt the current running task', source: 'builtin' },
+        { name: 'status', description: 'Show current session status', source: 'builtin' },
+    ],
 }
 
 export function useSlashCommands(

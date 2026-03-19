@@ -185,19 +185,28 @@ async function watchMessageQueue(opts: {
             continue;
         }
 
-        let messageText = batch.message;
-        if (!instructionsSent) {
-            messageText = `${TITLE_INSTRUCTION}\n\n${batch.message}`;
-            instructionsSent = true;
-        }
+        const trimmedMessage = batch.message.trim();
+        const slashMatch = trimmedMessage.match(/^\/([^\s]+)(?:\s+([\s\S]*))?$/);
 
         try {
+            if (slashMatch) {
+                const [, command, args] = slashMatch;
+                await sdk.runCommand(sessionId, command, args?.trim());
+                continue;
+            }
+
+            let messageText = batch.message;
+            if (!instructionsSent) {
+                messageText = `${TITLE_INSTRUCTION}\n\n${batch.message}`;
+                instructionsSent = true;
+            }
+
             await sdk.promptAsync(sessionId, messageText);
         } catch (error) {
-            logger.warn('[serve-loop] promptAsync failed', error);
+            logger.warn('[serve-loop] promptAsync/command failed', error);
             session.sendSessionEvent({
                 type: 'message',
-                message: 'OpenCode prompt failed. Check logs for details.'
+                message: 'OpenCode request failed. Check logs for details.'
             });
         }
     }
