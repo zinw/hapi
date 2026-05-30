@@ -23,7 +23,7 @@ export async function handleAuthCommand(args: string[]): Promise<void> {
         const hasToken = Boolean(envToken || settingsToken)
         const tokenSource = envToken ? 'environment' : (settingsToken ? 'settings file' : 'none')
         console.log(chalk.bold('\nDirect Connect Status\n'))
-        console.log(chalk.gray(`  HAPI_API_URL: ${configuration.apiUrl}`))
+        console.log(chalk.gray(`  HAPI_API_URL: ${configuration.apiConfiguredUrl}`))
         console.log(chalk.gray(`  CLI_API_TOKEN: ${hasToken ? 'set' : 'missing'}`))
         console.log(chalk.gray(`  Token Source: ${tokenSource}`))
         console.log(chalk.gray(`  Machine ID: ${settings.machineId ?? 'not set'}`))

@@ -172,7 +172,7 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
                 messageLower.includes('network error')
             ) {
                 console.error(chalk.yellow('Unable to connect to HAPI hub'))
-                console.error(chalk.gray(`  Hub URL: ${configuration.apiUrl}`))
+                console.error(chalk.gray(`  Hub URL: ${configuration.apiConfiguredUrl}`))
                 console.error(chalk.gray('  Please check your network connection or hub status'))
             } else if (httpStatus === 403 && responseErrorText === 'Machine access denied') {
                 console.error(chalk.red('Machine access denied.'))

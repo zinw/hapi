@@ -178,7 +178,7 @@ export async function isRunnerRunningCurrentlyInstalledHappyVersion(): Promise<b
   const currentApiUrl = process.env.HAPI_API_URL
     || settings.apiUrl
     || settings.serverUrl
-    || configuration.apiUrl;
+    || configuration.apiConfiguredUrl;
   const currentCliApiToken = process.env.CLI_API_TOKEN
     || settings.cliApiToken
     || configuration.cliApiToken;

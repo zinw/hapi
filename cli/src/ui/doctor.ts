@@ -108,7 +108,7 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
         // Configuration
         console.log(chalk.bold('⚙️  Configuration'));
         console.log(`hapi Home: ${chalk.blue(configuration.happyHomeDir)}`);
-        console.log(`Bot URL: ${chalk.blue(configuration.apiUrl)}`);
+        console.log(`Bot URL: ${chalk.blue(configuration.apiConfiguredUrl)}`);
         console.log(`Logs Dir: ${chalk.blue(configuration.logsDir)}`);
 
         // Environment

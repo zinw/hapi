@@ -40,7 +40,9 @@ export function parseExtraHeaders(raw: string | undefined, warn: (message: strin
 }
 
 class Configuration {
+    private _apiConfiguredUrl: string
     private _apiUrl: string
+    private _apiLocalProxyUrl: string | null = null
     private _cliApiToken: string
     private _extraHeaders: Record<string, string>
     public readonly isRunnerProcess: boolean
@@ -58,7 +60,8 @@ class Configuration {
 
     constructor() {
         // Server configuration
-        this._apiUrl = process.env.HAPI_API_URL || 'http://localhost:3006'
+        this._apiConfiguredUrl = process.env.HAPI_API_URL || 'http://localhost:3006'
+        this._apiUrl = this._apiConfiguredUrl
         this._cliApiToken = process.env.CLI_API_TOKEN || ''
         this._extraHeaders = parseExtraHeaders(process.env.HAPI_EXTRA_HEADERS_JSON)
 
@@ -94,11 +97,28 @@ class Configuration {
         }
     }
 
+    get apiConfiguredUrl(): string {
+        return this._apiConfiguredUrl
+    }
+
     get apiUrl(): string {
         return this._apiUrl
     }
 
+    setApiLocalProxyUrl(url: string): void {
+        this._apiLocalProxyUrl = url
+    }
+
+    hasApiLocalProxy(): boolean {
+        return this._apiLocalProxyUrl !== null
+    }
+
     _setApiUrl(url: string): void {
+        this._apiUrl = url
+        this._apiConfiguredUrl = url
+    }
+
+    _setApiLocalProxyUrl(url: string): void {
         this._apiUrl = url
     }
 

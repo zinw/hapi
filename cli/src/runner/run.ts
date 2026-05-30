@@ -666,7 +666,7 @@ export async function startRunner(options: { workspaceRoots?: string[] } = {}): 
       startTime: new Date().toLocaleString(),
       startedWithCliVersion: packageJson.version,
       startedWithCliMtimeMs,
-      startedWithApiUrl: configuration.apiUrl,
+      startedWithApiUrl: configuration.apiConfiguredUrl,
       startedWithMachineId: machineId,
       startedWithCliApiTokenHash: hashRunnerCliApiToken(configuration.cliApiToken),
       runnerLogPath: logger.logFilePath
@@ -726,7 +726,7 @@ export async function startRunner(options: { workspaceRoots?: string[] } = {}): 
     console.log('');
     console.log('Hapi runner started.');
     console.log(`  Workspace roots: ${workspaceRoots?.join(', ') ?? '(not set — browse disabled; pass --workspace-root to enable)'}`);
-    console.log(`  Hub URL:        ${configuration.apiUrl}`);
+    console.log(`  Hub URL:        ${configuration.apiConfiguredUrl}`);
     console.log(`  Machine ID:     ${machine.id}`);
     console.log(`  Control port:   ${controlPort}`);
     console.log('Waiting for sessions. Press Ctrl+C to stop.');
