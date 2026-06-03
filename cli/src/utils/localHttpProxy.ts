@@ -1,176 +1,205 @@
 import { spawn, type ChildProcessByStdio } from 'node:child_process'
 import { once } from 'node:events'
 import type { Readable } from 'node:stream'
+import { logger } from '@/ui/logger'
 
 export interface LocalHttpProxy {
     readonly url: string
     close(): Promise<void>
 }
 
+const START_TIMEOUT_MS = 10_000
+const PROXY_LOG_PREFIX = '[HAPI TLS PROXY]'
+const DISABLE_ENV = 'HAPI_DISABLE_LOCAL_TLS_PROXY'
+const NODE_BIN_ENV = 'HAPI_LOCAL_TLS_PROXY_NODE_BIN'
+const READY_PREFIX = 'HAPI_LOCAL_PROXY_READY '
+
+// The proxy only ever forwards to HTTPS upstreams: callers gate on `https://`.
+// We keep the script self-contained and only require the modules it actually uses.
 const PROXY_SCRIPT = String.raw`
-const http = require('node:http')
-const https = require('node:https')
-const net = require('node:net')
-const tls = require('node:tls')
+const http = require('node:http');
+const https = require('node:https');
+const tls = require('node:tls');
+const { URL } = require('node:url');
 
-const targetBase = new URL(process.argv[1])
-
-function requestModule(protocol) {
-  return protocol === 'https:' ? https : http
-}
-
-function upstreamPort(url) {
-  if (url.port) return Number.parseInt(url.port, 10)
-  return url.protocol === 'https:' ? 443 : 80
-}
-
-function writeUpgradeRequest(req, target, upstream) {
-  const headers = [...req.rawHeaders]
-  for (let i = 0; i < headers.length; i += 2) {
-    if (headers[i] && headers[i].toLowerCase() === 'host') {
-      headers[i + 1] = target.host
-    }
-  }
-
-  upstream.write((req.method || 'GET') + ' ' + target.pathname + target.search + ' HTTP/' + req.httpVersion + '\r\n')
-  for (let i = 0; i < headers.length; i += 2) {
-    upstream.write(headers[i] + ': ' + headers[i + 1] + '\r\n')
-  }
-  upstream.write('\r\n')
-}
+const target = new URL(process.argv[1]);
 
 const server = http.createServer((clientReq, clientRes) => {
-  const target = new URL(clientReq.url || '/', targetBase)
-  const proxyReq = requestModule(target.protocol).request({
+  const upstreamReq = https.request({
     protocol: target.protocol,
     hostname: target.hostname,
-    port: upstreamPort(target),
+    port: target.port || 443,
     method: clientReq.method,
-    path: target.pathname + target.search,
-    headers: {
-      ...clientReq.headers,
-      host: target.host
-    }
-  }, (proxyRes) => {
-    clientRes.writeHead(proxyRes.statusCode || 502, proxyRes.headers)
-    proxyRes.pipe(clientRes)
-  })
+    path: clientReq.url || '/',
+    headers: { ...clientReq.headers, host: target.host },
+  }, (upstreamRes) => {
+    clientRes.writeHead(upstreamRes.statusCode || 502, upstreamRes.headers);
+    upstreamRes.pipe(clientRes);
+  });
 
-  proxyReq.on('error', (error) => {
-    if (clientRes.headersSent) {
-      clientRes.destroy(error)
-      return
+  upstreamReq.on('error', (error) => {
+    if (!clientRes.headersSent) {
+      clientRes.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' });
     }
-    clientRes.writeHead(502)
-    clientRes.end(error && error.message ? error.message : 'Proxy request failed')
-  })
+    clientRes.end('proxy error: ' + (error && error.message ? error.message : 'upstream failure'));
+  });
 
-  clientReq.pipe(proxyReq)
-})
+  clientReq.pipe(upstreamReq);
+});
 
 server.on('upgrade', (req, clientSocket, head) => {
-  const target = new URL(req.url || '/', targetBase)
-  const port = upstreamPort(target)
-  const upstream = target.protocol === 'https:'
-    ? tls.connect({ host: target.hostname, port, servername: target.hostname })
-    : net.connect(port, target.hostname)
-  const readyEvent = target.protocol === 'https:' ? 'secureConnect' : 'connect'
+  const upstreamSocket = tls.connect({
+    host: target.hostname,
+    port: Number(target.port || 443),
+    servername: target.hostname,
+  }, () => {
+    let requestText = (req.method || 'GET') + ' ' + (req.url || '/') + ' HTTP/1.1\r\n';
+    for (const [name, value] of Object.entries(req.headers)) {
+      if (value == null) continue;
+      if (Array.isArray(value)) {
+        for (const item of value) requestText += name + ': ' + item + '\r\n';
+        continue;
+      }
+      requestText += name + ': ' + value + '\r\n';
+    }
+    // Override Host on the upstream wire so vhost routing and SNI match the target.
+    requestText = requestText.replace(/^host: .*$/im, 'host: ' + target.host);
+    requestText += '\r\n';
+    upstreamSocket.write(requestText);
+    if (head && head.length > 0) upstreamSocket.write(head);
 
-  upstream.on(readyEvent, () => {
-    writeUpgradeRequest(req, target, upstream)
-    if (head.length > 0) upstream.write(head)
-    upstream.pipe(clientSocket)
-    clientSocket.pipe(upstream)
-  })
+    clientSocket.pipe(upstreamSocket);
+    upstreamSocket.pipe(clientSocket);
+  });
 
-  upstream.on('error', () => {
-    clientSocket.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n')
-  })
+  const destroyBoth = () => {
+    if (!clientSocket.destroyed) clientSocket.destroy();
+    if (!upstreamSocket.destroyed) upstreamSocket.destroy();
+  };
 
-  clientSocket.on('error', () => {
-    upstream.destroy()
-  })
-})
+  upstreamSocket.on('error', () => {
+    if (!clientSocket.destroyed) {
+      clientSocket.write('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n');
+    }
+    destroyBoth();
+  });
+
+  clientSocket.on('error', destroyBoth);
+  clientSocket.on('close', destroyBoth);
+});
 
 server.listen(0, '127.0.0.1', () => {
-  const address = server.address()
-  process.stdout.write(JSON.stringify({ url: 'http://127.0.0.1:' + address.port }) + '\n')
-})
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('Failed to determine local proxy port');
+  }
+  process.stdout.write('${READY_PREFIX}http://127.0.0.1:' + address.port + '\n');
+});
 
 process.on('SIGTERM', () => {
-  server.close(() => process.exit(0))
-})
+  server.close(() => process.exit(0));
+});
 `
 
-function parseProxyStartupLine(line: string): string | null {
+function isLocalProxyDisabled(): boolean {
+    const raw = process.env[DISABLE_ENV]?.toLowerCase()
+    return raw === '1' || raw === 'true' || raw === 'yes'
+}
+
+function isHttpsUrl(url: string): boolean {
     try {
-        const parsed = JSON.parse(line) as unknown
-        if (!parsed || typeof parsed !== 'object') return null
-        const url = (parsed as { url?: unknown }).url
-        return typeof url === 'string' ? url : null
+        return new URL(url).protocol === 'https:'
     } catch {
-        return null
+        return false
     }
 }
 
-async function waitForProxyUrl(child: ChildProcessByStdio<null, Readable, Readable>): Promise<string> {
-    let stdout = ''
-    let stderr = ''
+export function shouldUseLocalHubTlsProxy(apiUrl: string): boolean {
+    if (isLocalProxyDisabled()) return false
+    return isHttpsUrl(apiUrl)
+}
 
-    return await new Promise<string>((resolve, reject) => {
-        const cleanup = () => {
+function waitForProxyReady(
+    child: ChildProcessByStdio<null, Readable, Readable>,
+    targetUrl: string,
+): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+        let stdoutBuffer = ''
+        let stderrBuffer = ''
+        let settled = false
+
+        const timeout = setTimeout(() => {
+            finish(new Error(`Timed out after ${START_TIMEOUT_MS}ms starting local proxy for ${targetUrl}`))
+        }, START_TIMEOUT_MS)
+
+        const finish = (result: Error | string) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
             child.stdout.off('data', onStdout)
             child.stderr.off('data', onStderr)
             child.off('error', onError)
             child.off('exit', onExit)
-        }
-
-        const onStdout = (chunk: Buffer) => {
-            stdout += chunk.toString('utf8')
-            const newlineIndex = stdout.indexOf('\n')
-            if (newlineIndex === -1) return
-
-            const line = stdout.slice(0, newlineIndex)
-            const url = parseProxyStartupLine(line)
-            if (!url) {
-                cleanup()
-                reject(new Error(`Invalid local proxy startup response: ${line}`))
+            if (typeof result === 'string') {
+                resolve(result)
                 return
             }
-            cleanup()
-            resolve(url)
+            reject(result)
         }
 
-        const onStderr = (chunk: Buffer) => {
-            stderr += chunk.toString('utf8')
+        const onStdout = (chunk: Buffer | string) => {
+            stdoutBuffer += chunk.toString()
+            const lines = stdoutBuffer.split('\n')
+            stdoutBuffer = lines.pop() ?? ''
+            for (const line of lines) {
+                const trimmed = line.trim()
+                if (!trimmed) continue
+                if (trimmed.startsWith(READY_PREFIX)) {
+                    finish(trimmed.slice(READY_PREFIX.length).trim())
+                    return
+                }
+                logger.debug(`${PROXY_LOG_PREFIX} ${trimmed}`)
+            }
         }
 
-        const onError = (error: Error) => {
-            cleanup()
-            reject(error)
+        const onStderr = (chunk: Buffer | string) => {
+            const text = chunk.toString().trim()
+            if (!text) return
+            stderrBuffer += `${text}\n`
+            logger.debug(`${PROXY_LOG_PREFIX} ${text}`)
         }
+
+        const onError = (error: Error) => finish(error)
 
         const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-            cleanup()
-            reject(new Error(`Local proxy exited before startup (code=${code ?? 'null'}, signal=${signal ?? 'null'}): ${stderr.trim()}`))
+            const details = stderrBuffer.trim() || stdoutBuffer.trim()
+            const suffix = details ? `: ${details}` : ''
+            finish(new Error(`Local proxy exited before ready (code=${code ?? 'null'}, signal=${signal ?? 'null'})${suffix}`))
         }
 
         child.stdout.on('data', onStdout)
         child.stderr.on('data', onStderr)
-        child.on('error', onError)
-        child.on('exit', onExit)
+        child.once('error', onError)
+        child.once('exit', onExit)
     })
 }
 
 export async function startLocalHttpProxy(targetBaseUrl: string): Promise<LocalHttpProxy> {
-    const child = spawn(process.env.HAPI_NODE_EXECUTABLE || 'node', ['-e', PROXY_SCRIPT, targetBaseUrl], {
+    if (!isHttpsUrl(targetBaseUrl)) {
+        throw new Error(`startLocalHttpProxy requires an https:// target, got: ${targetBaseUrl}`)
+    }
+
+    const nodeBin = process.env[NODE_BIN_ENV] || process.env.HAPI_NODE_EXECUTABLE || 'node'
+    logger.debug(`${PROXY_LOG_PREFIX} Starting local proxy for ${targetBaseUrl}`)
+
+    const child = spawn(nodeBin, ['-e', PROXY_SCRIPT, targetBaseUrl], {
         detached: true,
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
     })
     child.unref()
-    const url = await waitForProxyUrl(child)
-    ;(child.stdout as Readable & { unref?: () => void }).unref?.()
-    ;(child.stderr as Readable & { unref?: () => void }).unref?.()
+
+    const url = await waitForProxyReady(child, targetBaseUrl)
+    logger.debug(`${PROXY_LOG_PREFIX} Using local proxy ${url} for ${targetBaseUrl}`)
 
     return {
         url,
@@ -178,8 +207,27 @@ export async function startLocalHttpProxy(targetBaseUrl: string): Promise<LocalH
             if (child.exitCode !== null || child.signalCode !== null) {
                 return
             }
-            child.kill('SIGTERM')
+            try {
+                child.kill('SIGTERM')
+            } catch {
+                // already gone
+            }
             await once(child, 'exit')
-        }
+            logger.debug(`${PROXY_LOG_PREFIX} Local proxy closed`)
+        },
     }
+}
+
+// Process-wide singleton: spawn the proxy at most once per target URL.
+// Re-entry returns the existing instance so the same process never spawns two
+// proxies pointing at the same hub.
+const cached = new Map<string, Promise<LocalHttpProxy>>()
+
+export function startOrReuseLocalHttpProxy(targetBaseUrl: string): Promise<LocalHttpProxy> {
+    const existing = cached.get(targetBaseUrl)
+    if (existing) return existing
+    const fresh = startLocalHttpProxy(targetBaseUrl)
+    cached.set(targetBaseUrl, fresh)
+    fresh.catch(() => cached.delete(targetBaseUrl))
+    return fresh
 }

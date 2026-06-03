@@ -41,7 +41,6 @@ export function parseExtraHeaders(raw: string | undefined, warn: (message: strin
 
 class Configuration {
     private _apiConfiguredUrl: string
-    private _apiUrl: string
     private _apiLocalProxyUrl: string | null = null
     private _cliApiToken: string
     private _extraHeaders: Record<string, string>
@@ -61,7 +60,6 @@ class Configuration {
     constructor() {
         // Server configuration
         this._apiConfiguredUrl = process.env.HAPI_API_URL || 'http://localhost:3006'
-        this._apiUrl = this._apiConfiguredUrl
         this._cliApiToken = process.env.CLI_API_TOKEN || ''
         this._extraHeaders = parseExtraHeaders(process.env.HAPI_EXTRA_HEADERS_JSON)
 
@@ -102,11 +100,7 @@ class Configuration {
     }
 
     get apiUrl(): string {
-        return this._apiUrl
-    }
-
-    setApiLocalProxyUrl(url: string): void {
-        this._apiLocalProxyUrl = url
+        return this._apiLocalProxyUrl ?? this._apiConfiguredUrl
     }
 
     hasApiLocalProxy(): boolean {
@@ -114,12 +108,14 @@ class Configuration {
     }
 
     _setApiUrl(url: string): void {
-        this._apiUrl = url
+        // Switching the configured hub discards any active local proxy: the proxy
+        // targets the previous URL and would silently keep routing to it.
         this._apiConfiguredUrl = url
+        this._apiLocalProxyUrl = null
     }
 
-    _setApiLocalProxyUrl(url: string): void {
-        this._apiUrl = url
+    setLocalProxyApiUrl(url: string): void {
+        this._apiLocalProxyUrl = url
     }
 
     get cliApiToken(): string {
